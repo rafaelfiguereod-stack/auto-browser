@@ -1,17 +1,53 @@
 [
   {
+<<<<<<< Updated upstream
     "id": "fbe89c73ce0848179effbdd09d40060c",
     "protocol_version": "2025-03-26",
     "client_info": {
       "name": "claude-test",
+=======
+    "id": "ee2c320fec084a3ca8359bec2f48ed64",
+    "protocol_version": "2025-11-25",
+    "client_info": {
+      "name": "local-agent-mode-auto-browser",
+      "version": "1.0.0"
+    },
+    "client_capabilities": {
+      "roots": {
+        "listChanged": true
+      },
+      "extensions": {
+        "io.modelcontextprotocol/ui": {
+          "mimeTypes": [
+            "text/html;profile=mcp-app"
+          ]
+        }
+      }
+    },
+    "initialized": true,
+    "created_at": "2026-05-02T18:10:31.398218Z"
+  },
+  {
+    "id": "7d259609cde94ed9b4e313f137c120e7",
+    "protocol_version": "2025-11-25",
+    "client_info": {
+      "name": "test",
+>>>>>>> Stashed changes
       "version": "1.0"
     },
     "client_capabilities": {},
     "initialized": false,
+<<<<<<< Updated upstream
     "created_at": "2026-05-09T02:18:41.954169Z"
   },
   {
     "id": "f16b966a29c64aa2a5e3d194ae6f25f6",
+=======
+    "created_at": "2026-05-05T21:19:15.910918Z"
+  },
+  {
+    "id": "f315aaf888c6448a895d75aef464193d",
+>>>>>>> Stashed changes
     "protocol_version": "2025-11-25",
     "client_info": {
       "name": "claude-ai",
@@ -27,6 +63,73 @@
       }
     },
     "initialized": true,
+<<<<<<< Updated upstream
     "created_at": "2026-05-09T10:08:52.335116Z"
+=======
+    "created_at": "2026-05-06T00:49:44.193708Z"
+  },
+  {
+    "id": "eb4c83bba6774abb878af031ec05d0ca",
+    "protocol_version": "2025-11-25",
+    "client_info": {
+      "name": "local-agent-mode-auto-browser",
+      "version": "1.0.0"
+    },
+    "client_capabilities": {
+      "roots": {
+        "listChanged": true
+      },
+      "extensions": {
+        "io.modelcontextprotocol/ui": {
+          "mimeTypes": [
+            "text/html;profile=mcp-app"
+          ]
+        }
+      }
+    },
+    "initialized": true,
+    "created_at": "2026-05-06T00:50:39.871041Z"
+  },
+  {
+    "id": "834c2ef3d089483c95847958cafff593",
+    "protocol_version": "2025-11-25",
+    "client_info": {
+      "name": "claude-ai",
+      "version": "0.1.0"
+    },
+    "client_capabilities": {
+      "extensions": {
+        "io.modelcontextprotocol/ui": {
+          "mimeTypes": [
+            "text/html;profile=mcp-app"
+          ]
+        }
+      }
+    },
+    "initialized": true,
+    "created_at": "2026-05-06T10:18:52.159321Z"
+  },
+  {
+    "id": "16bacf3a812d49dea086c0479e4c5c57",
+    "protocol_version": "2025-11-25",
+    "client_info": {
+      "name": "local-agent-mode-auto-browser",
+      "version": "1.0.0"
+    },
+    "client_capabilities": {
+      "roots": {
+        "listChanged": true
+      },
+      "extensions": {
+        "io.modelcontextprotocol/ui": {
+          "mimeTypes": [
+            "text/html;profile=mcp-app"
+          ]
+        }
+      }
+    },
+    "initialized": true,
+    "created_at": "2026-05-06T10:51:08.161401Z"
+>>>>>>> Stashed changes
   }
 ]

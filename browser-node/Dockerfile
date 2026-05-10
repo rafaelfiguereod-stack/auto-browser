@@ -35,7 +35,11 @@ RUN npm install --no-audit --no-fund \
 
 COPY entrypoint.sh /entrypoint.sh
 COPY server.mjs /opt/browser-node/server.mjs
+<<<<<<< Updated upstream
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
+=======
+RUN sed -i 's/\r//' /entrypoint.sh && chmod +x /entrypoint.sh
+>>>>>>> Stashed changes
 
 EXPOSE 5900 6080 9223
 

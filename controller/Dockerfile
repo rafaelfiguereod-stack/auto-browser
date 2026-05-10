@@ -10,11 +10,7 @@ ARG GEMINI_CLI_VERSION=0.32.1
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends autossh openssh-client nodejs npm tesseract-ocr tesseract-ocr-eng \
-    && npm install -g \
-        @openai/codex@${CODEX_CLI_VERSION} \
-        @anthropic-ai/claude-code@${CLAUDE_CLI_VERSION} \
-        @google/gemini-cli@${GEMINI_CLI_VERSION} \
+    && apt-get install -y --no-install-recommends autossh openssh-client tesseract-ocr tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt requirements-dev.txt ./

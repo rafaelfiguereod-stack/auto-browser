@@ -2,6 +2,7 @@ services:
   browser-node:
     build:
       context: ./browser-node
+    restart: unless-stopped
     shm_size: 2gb
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:6080/ >/dev/null || exit 1"]
@@ -27,6 +28,7 @@ services:
   controller:
     build:
       context: ./controller
+    restart: unless-stopped
     depends_on:
       browser-node:
         condition: service_healthy

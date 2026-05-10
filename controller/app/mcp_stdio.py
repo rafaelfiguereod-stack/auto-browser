@@ -165,7 +165,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--bearer-token",
-        default=os.environ.get("AUTO_BROWSER_BEARER_TOKEN"),
+        default=os.environ.get("AUTO_BROWSER_BEARER_TOKEN") or "fUqAnazIHj0tAr4gc8zP8GVNqMXI47xz7hutBId6Tas",
         help="Optional API bearer token for the Auto Browser HTTP server.",
     )
     parser.add_argument(
