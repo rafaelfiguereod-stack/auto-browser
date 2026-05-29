@@ -34,6 +34,7 @@ class McpTransportTests(unittest.TestCase):
                     content=[McpToolCallContent(text='{"session_id":"session-1"}')],
                     structuredContent={"session_id": "session-1", "status": "ok"},
                     isError=False,
+                    meta={"latency_ms": 3.5, "status": "ok", "tool": "browser.observe"},
                 )
             ),
         )
@@ -92,6 +93,7 @@ class McpTransportTests(unittest.TestCase):
         self.assertTrue(result["capabilities"]["experimental"]["autoBrowser"]["resumableAgentJobs"])
         self.assertTrue(result["capabilities"]["experimental"]["autoBrowser"]["discardableAgentJobs"])
         self.assertTrue(result["capabilities"]["experimental"]["autoBrowser"]["cancellableAgentJobs"])
+        self.assertTrue(result["capabilities"]["resources"]["subscribe"])
         return session_id, protocol_version
 
     def test_initialize_requires_initialized_notification_before_tool_calls(self) -> None:
@@ -138,6 +140,7 @@ class McpTransportTests(unittest.TestCase):
         )
         self.assertEqual(call_response.status_code, 200)
         self.assertEqual(call_response.json()["result"]["structuredContent"]["session_id"], "session-1")
+        self.assertEqual(call_response.json()["result"]["_meta"]["tool"], "browser.observe")
         self.gateway.call_tool.assert_awaited_once()
         called = self.gateway.call_tool.await_args.args[0]
         self.assertEqual(called.name, "browser.observe")
@@ -317,6 +320,78 @@ class McpTransportTests(unittest.TestCase):
         body = read_response.json()
         self.assertEqual(body["error"]["code"], -32002)
         self.assertIn("Resource not found", body["error"]["message"])
+
+    def test_resources_subscribe_and_unsubscribe_track_session_state(self) -> None:
+        session_id, protocol_version = self._initialize()
+        self.client.post(
+            "/mcp",
+            headers={MCP_SESSION_HEADER: session_id, MCP_PROTOCOL_HEADER: protocol_version},
+            json={"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}},
+        )
+
+        subscribe_response = self.client.post(
+            "/mcp",
+            headers={MCP_SESSION_HEADER: session_id, MCP_PROTOCOL_HEADER: protocol_version},
+            json={
+                "jsonrpc": "2.0",
+                "id": 13,
+                "method": "resources/subscribe",
+                "params": {"uri": "browser://sessions"},
+            },
+        )
+
+        self.assertEqual(subscribe_response.status_code, 200)
+        self.assertEqual(subscribe_response.json()["result"], {})
+        self.assertEqual(self.transport._sessions[session_id].resource_subscriptions, ["browser://sessions"])
+
+        unsubscribe_response = self.client.post(
+            "/mcp",
+            headers={MCP_SESSION_HEADER: session_id, MCP_PROTOCOL_HEADER: protocol_version},
+            json={
+                "jsonrpc": "2.0",
+                "id": 14,
+                "method": "resources/unsubscribe",
+                "params": {"uri": "browser://sessions"},
+            },
+        )
+
+        self.assertEqual(unsubscribe_response.status_code, 200)
+        self.assertEqual(unsubscribe_response.json()["result"], {})
+        self.assertEqual(self.transport._sessions[session_id].resource_subscriptions, [])
+
+    def test_resources_subscribe_rejects_unknown_uri(self) -> None:
+        session_id, protocol_version = self._initialize()
+        self.client.post(
+            "/mcp",
+            headers={MCP_SESSION_HEADER: session_id, MCP_PROTOCOL_HEADER: protocol_version},
+            json={"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}},
+        )
+
+        subscribe_response = self.client.post(
+            "/mcp",
+            headers={MCP_SESSION_HEADER: session_id, MCP_PROTOCOL_HEADER: protocol_version},
+            json={
+                "jsonrpc": "2.0",
+                "id": 15,
+                "method": "resources/subscribe",
+                "params": {"uri": "browser://session-1/missing"},
+            },
+        )
+
+        self.assertEqual(subscribe_response.status_code, 200)
+        self.assertEqual(subscribe_response.json()["error"]["code"], -32002)
+
+    def test_resource_update_mapping_only_emits_subscribed_resources(self) -> None:
+        uris = McpHttpTransport._updated_resource_uris(
+            {"event": "observe", "session_id": "session-1"},
+            subscribed=[
+                "browser://sessions",
+                "browser://session-1/dom",
+                "browser://session-1/network",
+            ],
+        )
+
+        self.assertEqual(uris, ["browser://session-1/dom", "browser://sessions"])
 
 
 if __name__ == "__main__":

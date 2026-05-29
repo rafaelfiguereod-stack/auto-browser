@@ -42,7 +42,7 @@ This is the near-term direction for Auto Browser.
 - Request-level `fast` and `governed` workflow profiles for agent runs
 - Agent memory profiles for cross-session context persistence
 - Deployment readiness advisor with compliance mode checks
-- Compliance templates (HIPAA, SOC2, GDPR, PCI-DSS) via a single env var
+- Policy presets (`strict`, `balanced`) via a single env var, with deprecated aliases for prior names
 - GitHub Codespaces one-click demo environment
 - LangChain / LangGraph / CrewAI integration package
 - Timing-safe bearer token comparison

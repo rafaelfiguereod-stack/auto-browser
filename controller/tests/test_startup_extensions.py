@@ -35,11 +35,12 @@ class StartupExtensionsTests(unittest.IsolatedAsyncioTestCase):
         self.temp_dir.cleanup()
 
     def test_register_extensions_initializes_disabled_state_and_hooks(self) -> None:
+        gateway = SimpleNamespace(harness_service=None)
         app = SimpleNamespace(
             state=SimpleNamespace(
                 browser_manager=FakeManager(),
-                settings=SimpleNamespace(stealth_enabled=False),
-                tool_gateway=None,
+                settings=SimpleNamespace(stealth_enabled=False, harness_root=os.path.join(self.temp_dir.name, "harness")),
+                tool_gateway=gateway,
             )
         )
 
@@ -53,6 +54,8 @@ class StartupExtensionsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(app.state.cdp_sessions, {})
         self.assertIsNone(app.state.youtube_client)
         self.assertIsNone(app.state.veo3_client)
+        self.assertIsNotNone(app.state.harness_service)
+        self.assertIs(gateway.harness_service, app.state.harness_service)
         self.assertIsNotNone(app.state.workflow_engine)
         curator.assert_called_once_with(app)
         app.state.browser_manager.register_extension_hooks.assert_called_once()

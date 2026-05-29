@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import sqlite3
 from contextlib import closing
 from contextvars import ContextVar, Token
@@ -11,6 +10,7 @@ from typing import Protocol
 from uuid import uuid4
 
 from .models import AuditEvent, OperatorIdentity
+from .sqlite_utils import connect_sqlite
 from .utils import utc_now
 
 logger = logging.getLogger(__name__)
@@ -244,12 +244,7 @@ class SQLiteAuditStore:
         return [AuditEvent.model_validate_json(row[0]) for row in rows]
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path, timeout=10)
-        conn.row_factory = sqlite3.Row
-        if os.name != "nt":
-            conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        return conn
+        return connect_sqlite(self.db_path, timeout=10, row_factory=sqlite3.Row)
 
 
 class AuditStore:

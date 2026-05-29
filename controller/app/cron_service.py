@@ -168,8 +168,8 @@ class CronService:
             if self._scheduler is not None:
                 try:
                     self._scheduler.remove_job(job_id)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("failed to remove cron job %s during update: %s", job_id, exc)
                 if job.get("enabled") and job.get("schedule"):
                     self._register_job(job)
 
@@ -185,8 +185,8 @@ class CronService:
             if self._scheduler is not None:
                 try:
                     self._scheduler.remove_job(job_id)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("failed to remove cron job %s during delete: %s", job_id, exc)
             return True
 
     # ── Webhook trigger ─────────────────────────────────────────────────────

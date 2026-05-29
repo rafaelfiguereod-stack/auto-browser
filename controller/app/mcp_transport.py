@@ -1,17 +1,19 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 from uuid import uuid4
 
 from fastapi import Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import ValidationError
 
+from . import events as _events
 from .models import McpToolCallRequest
 from .utils import utc_now
 
@@ -37,6 +39,7 @@ class McpSession:
     client_capabilities: dict[str, Any]
     initialized: bool = False
     created_at: str = ""
+    resource_subscriptions: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if not self.created_at:
@@ -99,10 +102,29 @@ class McpHttpTransport:
         origin_error = self._validate_origin(request)
         if origin_error is not None:
             return origin_error
-        return JSONResponse(
-            status_code=405,
-            headers={"Allow": "POST, DELETE"},
-            content={"detail": "This MCP endpoint only supports POST JSON-RPC and DELETE session teardown."},
+
+        session = self._require_session(request)
+        if isinstance(session, Response):
+            return session
+        protocol_error = self._validate_protocol_header(request, session)
+        if protocol_error is not None:
+            return protocol_error
+        if not session.initialized:
+            return self._json_error_response(
+                None,
+                INITIALIZATION_REQUIRED_ERROR,
+                "Session not initialized. Send notifications/initialized before opening the event stream.",
+                headers=self._session_headers(session),
+            )
+
+        return StreamingResponse(
+            self._resource_event_stream(request, session),
+            media_type="text/event-stream",
+            headers={
+                **self._session_headers(session),
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
         )
 
     async def handle_delete_request(self, request: Request) -> Response:
@@ -190,7 +212,7 @@ class McpHttpTransport:
             tool_response = await self.tool_gateway.call_tool(tool_request)
             return self._json_result_response(
                 request_id,
-                tool_response.model_dump(exclude_none=True),
+                tool_response.model_dump(exclude_none=True, by_alias=True),
                 headers=self._session_headers(session),
             )
 
@@ -216,6 +238,10 @@ class McpHttpTransport:
                 {"contents": [content]},
                 headers=self._session_headers(session),
             )
+        if method == "resources/subscribe":
+            return await self._handle_resource_subscribe(request_id, session, params)
+        if method == "resources/unsubscribe":
+            return self._handle_resource_unsubscribe(request_id, session, params)
 
         return self._json_error_response(
             request_id,
@@ -326,6 +352,110 @@ class McpHttpTransport:
 
         return None
 
+    async def _handle_resource_subscribe(
+        self,
+        request_id: Any,
+        session: McpSession,
+        params: dict[str, Any],
+    ) -> Response:
+        uri = params.get("uri")
+        if not isinstance(uri, str) or not uri:
+            return self._json_error_response(
+                request_id,
+                -32602,
+                "resources/subscribe requires a non-empty uri",
+                headers=self._session_headers(session),
+            )
+        known_uris = {resource["uri"] for resource in await self._list_resources()}
+        if uri not in known_uris:
+            return self._json_error_response(
+                request_id,
+                -32002,
+                f"Resource not found: {uri}",
+                headers=self._session_headers(session),
+            )
+        if uri not in session.resource_subscriptions:
+            session.resource_subscriptions.append(uri)
+            session.resource_subscriptions.sort()
+            self._persist_sessions()
+        return self._json_result_response(request_id, {}, headers=self._session_headers(session))
+
+    def _handle_resource_unsubscribe(
+        self,
+        request_id: Any,
+        session: McpSession,
+        params: dict[str, Any],
+    ) -> Response:
+        uri = params.get("uri")
+        if not isinstance(uri, str) or not uri:
+            return self._json_error_response(
+                request_id,
+                -32602,
+                "resources/unsubscribe requires a non-empty uri",
+                headers=self._session_headers(session),
+            )
+        if uri in session.resource_subscriptions:
+            session.resource_subscriptions.remove(uri)
+            self._persist_sessions()
+        return self._json_result_response(request_id, {}, headers=self._session_headers(session))
+
+    async def _resource_event_stream(self, request: Request, session: McpSession):
+        queue = _events.subscribe_all()
+        try:
+            yield ": connected\n\n"
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    payload = await asyncio.wait_for(queue.get(), timeout=15)
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+                    continue
+                try:
+                    event = json.loads(payload)
+                except json.JSONDecodeError:
+                    logger.debug("dropping malformed browser event payload from MCP resource stream")
+                    continue
+                for uri in self._updated_resource_uris(event, subscribed=session.resource_subscriptions):
+                    message = {
+                        "jsonrpc": JSONRPC_VERSION,
+                        "method": "notifications/resources/updated",
+                        "params": {"uri": uri},
+                    }
+                    yield f"event: message\ndata: {json.dumps(message, ensure_ascii=False)}\n\n"
+        finally:
+            _events.unsubscribe_all(queue)
+
+    @staticmethod
+    def _updated_resource_uris(event: dict[str, Any], *, subscribed: list[str]) -> list[str]:
+        subscribed_set = set(subscribed)
+        if not subscribed_set:
+            return []
+        candidates = {"browser://sessions"}
+        session_id = event.get("session_id")
+        if isinstance(session_id, str) and session_id:
+            event_type = event.get("event")
+            if event_type == "observe":
+                candidates.update(
+                    {
+                        f"browser://{session_id}/dom",
+                        f"browser://{session_id}/screenshot",
+                    }
+                )
+            elif event_type == "action":
+                candidates.update(
+                    {
+                        f"browser://{session_id}/dom",
+                        f"browser://{session_id}/network",
+                        f"browser://{session_id}/screenshot",
+                    }
+                )
+            elif event_type == "session":
+                candidates.add(f"browser://{session_id}/dom")
+            elif event_type == "approval":
+                candidates.add(f"browser://{session_id}/console")
+        return sorted(uri for uri in candidates if uri in subscribed_set)
+
     def _handle_initialize(self, request_id: Any, params: dict[str, Any]) -> Response:
         requested_version = params.get("protocolVersion")
         if requested_version not in SUPPORTED_PROTOCOL_VERSIONS:
@@ -352,7 +482,7 @@ class McpHttpTransport:
             "protocolVersion": session.protocol_version,
             "capabilities": {
                 "tools": {},
-                "resources": {"subscribe": False},
+                "resources": {"subscribe": True},
                 "experimental": {
                     "autoBrowser": {
                         "workflowProfiles": ["fast", "governed"],
@@ -482,6 +612,11 @@ class McpHttpTransport:
                     client_capabilities=self._coerce_dict(item.get("client_capabilities")),
                     initialized=bool(item.get("initialized", False)),
                     created_at=str(item.get("created_at") or ""),
+                    resource_subscriptions=[
+                        str(uri)
+                        for uri in item.get("resource_subscriptions", [])
+                        if isinstance(uri, str)
+                    ],
                 )
             except Exception:
                 continue

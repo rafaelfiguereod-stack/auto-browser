@@ -49,8 +49,8 @@ async def mesh_receive(body: MeshReceiveRequest, request: Request):
         response = await delegation_mgr.receive_inbound(envelope)
     except (DelegationRejected, DelegationReplayError):
         raise HTTPException(403, "Mesh delegation rejected")
-    except Exception as exc:
-        logger.error("mesh.receive error: %s", exc)
+    except Exception:
+        logger.exception("mesh.receive error")
         raise HTTPException(500, "Mesh receive failed")
 
     identity = app.state.mesh_identity
@@ -80,6 +80,7 @@ async def mesh_add_peer(body: dict[str, Any], request: Request):
     try:
         peer = PeerRecord(**body)
     except Exception:
+        logger.debug("invalid mesh peer record", exc_info=True)
         raise HTTPException(422, "Invalid peer record")
     peers.add(peer)
     return {"status": "added", "node_id": peer.node_id}
@@ -274,7 +275,6 @@ _DASHBOARD_HTML = """<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Auto Browser — Operator Dashboard</title>
-<script src="https://unpkg.com/htmx.org@1.9.12"></script>
 <style>
   :root { --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3a; --accent: #6c63ff;
           --text: #e2e8f0; --muted: #64748b; --green: #10b981; --red: #ef4444; --yellow: #f59e0b; }

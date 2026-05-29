@@ -4,6 +4,70 @@ All notable changes to auto-browser are documented here.
 
 ## [Unreleased]
 
+## [1.1.1] — 2026-05-17
+
+### Added
+- Added `.github/FUNDING.yml` wiring GitHub Sponsors.
+- Added `docs/session-isolation-audit.md` documenting per-session isolation across `shared_browser_node` and `docker_ephemeral` modes.
+
+### Changed
+- Renamed the regulated compliance template names to neutral policy presets: `HIPAA`/`PCI-DSS` → `strict`, `SOC2`/`GDPR` → `balanced`. Legacy names still work as deprecated aliases and emit a warning at startup.
+- Promoted read-only harness inspection tools (`harness.list_runs`, `harness.get_status`, `harness.get_trace`) into the default `curated` MCP tool profile so agents can introspect harness state without elevated access. Convergence runs, drift checks, candidate management, and graduation still require `MCP_TOOL_PROFILE=full`.
+- Restored convergence harness positioning in the README as a first-class feature and v1.1.0 release highlight.
+- Simplified compliance-template normalization at controller startup; the preset module is now the single source of truth for validation and alias resolution.
+- Updated `LICENSE` copyright holder to JAI Studios.
+- Moved tip/sponsor pointers from the README body into `TIPS.md` and added the GitHub Sponsors link there.
+- Bumped controller, client, LangChain integration, and browser-node package metadata to `1.1.1`.
+
+### Removed
+- Removed the unused `open` compliance preset that was added during the rename pass; only `strict` and `balanced` remain.
+
+## [1.1.0] — 2026-05-09
+
+### Added
+- Added MCP resource listing and subscription surfaces for session observations, harness run status, staged candidates, and recent audit events.
+- Added per-tool MCP metrics and response metadata for latency, status, and tool identity.
+- Added skill drift monitoring with `harness.check_drift` and `harness.check_all_drifts` so staged skills can be re-verified after site or contract changes.
+- Added `/healthz/deep` to exercise a real browser context against a deterministic fixture, with an embedded fallback when packaged without `evals/`.
+
+### Changed
+- Refactored the controller into an app factory, focused routers, controller middleware modules, tool packs, browser services, and a shared action pipeline while preserving the public API.
+- Split BrowserManager internals into lifecycle, action execution, runtime policy, approvals, observation, auth profile, witness, human takeover, bot challenge, tabs, downloads, uploads, and TOTP services.
+- Split the MCP tool gateway into a registry plus domain tool packs with MCP tool annotations for read-only, destructive, idempotent, and open-world behavior.
+- Centralized SQLite WAL connection tuning for audit, approvals, traces, and related stores.
+- Bumped controller, client, LangChain integration, and browser-node package metadata to `1.1.0`.
+
+### Fixed
+- Fixed tool descriptor caching so tools/list avoids repeated schema generation while returning JSON-safe copies.
+- Fixed broad route-level failure handlers to log traceback context before returning stable `500` responses.
+- Fixed staged skill drift checks so artifact reads are derived from the candidate directory instead of trusting recorded absolute paths.
+- Fixed app startup so router registration failures fail closed instead of booting a partial controller.
+- Fixed deep health packaging behavior so missing fixture files are visible in logs but do not break packaged deployments.
+
+## [1.0.6] — 2026-05-09
+
+### Added
+- Added the Stage 0 convergence harness for Agent Skill Induction with task contracts, hash-chained traces, deterministic verification, budgeted iteration, staged skill induction, and CLI smoke support.
+- Added Universal Verifier adapter boundaries and ensemble verifier plumbing so UV/Stagehand-style verification can be swapped in without changing harness callers.
+- Added staged skill candidate artifacts with provenance, embedded self-tests, trace/contract copies, and optional mesh-signed envelopes that are round-trip verified before write.
+- Added full-profile MCP tools for harness runs and staged candidate review: `harness.start_convergence`, `harness.get_status`, `harness.get_trace`, `harness.list_runs`, `harness.list_candidates`, `harness.get_candidate`, and `harness.graduate`.
+- Added benchmark scaffolds for WebArena, Online-Mind2Web, and CUAVerifierBench plus a deterministic example contract.
+- Added `/version` for operator/runtime identification.
+
+### Changed
+- Requires `workflow_profile=governed` for page-level JavaScript evaluation and live-session harness convergence.
+- Tightened bearer-token exemptions so dashboard/UI roots are exact-match only, not broad path prefixes.
+- Removed the unused external HTMX CDN script from the operator dashboard.
+- Strengthened approval webhook target validation against loopback, private, link-local, metadata, unspecified, multicast, and reserved IP targets.
+- Improved gateway, cron, harness run, and staged-candidate logging around failures and unreadable artifacts.
+- Bumped controller, client, LangChain integration, and browser-node package metadata to `1.0.6`.
+
+### Fixed
+- Fixed staging path traversal and long-slug collision risks in induced skill IDs.
+- Fixed trace hash-chain validation so tampering is detected on read, not only at write time.
+- Fixed sensitive trace fields so auth, cookie, token, password, secret, and API-key payloads are redacted before persistence.
+- Fixed harness startup failure behavior so MCP callers get a clear harness-unavailable error instead of a generic tool failure.
+
 ## [1.0.5] — 2026-05-07
 
 ### Added

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shlex
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -27,6 +28,7 @@ def register_extensions(app) -> None:
         workflow_engine     — WorkflowEngine (with all action handlers)
     """
     _init_mesh(app)
+    _init_harness(app)
     _init_network_stores(app)
     _init_workflow_engine(app)
     _disable_extracted_social_state(app)
@@ -94,6 +96,63 @@ def _init_mesh(app) -> None:
         app.state.mesh_identity = None
         app.state.peer_registry = None
         app.state.delegation_manager = None
+
+
+# ---------------------------------------------------------------------------
+# Convergence harness
+# ---------------------------------------------------------------------------
+
+def _init_harness(app) -> None:
+    try:
+        from app.harness.iterate import HarnessService
+        from app.harness.register import mesh_identity_signer
+
+        settings = getattr(app.state, "settings", None)
+        root = Path(getattr(settings, "harness_root", None) or os.environ.get("HARNESS_ROOT", "/data/harness"))
+        identity = getattr(app.state, "mesh_identity", None)
+        signer = mesh_identity_signer(identity) if identity is not None else None
+        service = HarnessService(
+            root,
+            verifier=_build_harness_verifier(settings),
+            signer=signer,
+            model_tiers=_harness_model_tiers(settings),
+        )
+        app.state.harness_service = service
+        gateway = getattr(app.state, "tool_gateway", None)
+        if gateway is not None:
+            gateway.harness_service = service
+        logger.info("startup.harness: initialized root=%s signed=%s", root, bool(signer))
+    except Exception as exc:
+        logger.error("startup.harness: initialization failed — %s", exc)
+        app.state.harness_service = None
+
+
+def _build_harness_verifier(settings):
+    from app.harness.verifier import EnsembleVerifier, ProgrammaticVerifier, UniversalVerifierAdapter
+
+    mode = str(getattr(settings, "harness_verifier", "") or os.environ.get("HARNESS_VERIFIER", "programmatic")).lower()
+    uv_command = str(getattr(settings, "harness_uv_command", "") or os.environ.get("HARNESS_UV_COMMAND", ""))
+    uv = UniversalVerifierAdapter(command=shlex.split(uv_command) if uv_command else None)
+    programmatic = ProgrammaticVerifier()
+    if mode == "uv":
+        return uv
+    if mode == "ensemble":
+        return EnsembleVerifier([programmatic, uv])
+    return programmatic
+
+
+def _harness_model_tiers(settings) -> dict[str, str]:
+    return {
+        "explorer": str(
+            getattr(settings, "harness_explorer_model", "") or os.environ.get("HARNESS_EXPLORER_MODEL", "")
+        ),
+        "verifier": str(
+            getattr(settings, "harness_verifier_model", "") or os.environ.get("HARNESS_VERIFIER_MODEL", "")
+        ),
+        "executor": str(
+            getattr(settings, "harness_executor_model", "") or os.environ.get("HARNESS_EXECUTOR_MODEL", "")
+        ),
+    }
 
 
 # ---------------------------------------------------------------------------

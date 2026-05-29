@@ -10,6 +10,7 @@ from typing import Any, Literal
 
 from pydantic import Field, field_validator, model_validator
 
+from .harness.contracts import TaskContract
 from .models import (
     CDP_URL_SCHEMES,
     HTTP_URL_SCHEMES,
@@ -52,6 +53,12 @@ __all__ = [
     "GetPageHtmlInput",
     "GetRemoteAccessInput",
     "GetStorageInput",
+    "HarnessGetStatusInput",
+    "HarnessGetTraceInput",
+    "HarnessGraduateInput",
+    "HarnessListRunsInput",
+    "HarnessSkillIdInput",
+    "HarnessStartConvergenceInput",
     "ListAgentJobsInput",
     "ListApprovalsInput",
     "ListAuthProfilesInput",
@@ -86,6 +93,35 @@ __all__ = [
 
 
 class EmptyInput(StrictInputModel):
+    pass
+
+
+class HarnessStartConvergenceInput(StrictInputModel):
+    contract: TaskContract
+    session_id: str | None = Field(default=None, min_length=1, max_length=120)
+    provider: ProviderName = "openai"
+    mock_final_observation: dict[str, Any] | None = None
+    max_attempts: int | None = Field(default=None, ge=1, le=20)
+
+
+class HarnessGetStatusInput(StrictInputModel):
+    run_id: str = Field(min_length=1, max_length=120)
+
+
+class HarnessGetTraceInput(HarnessGetStatusInput):
+    attempt_index: int | None = Field(default=None, ge=1, le=20)
+
+
+class HarnessListRunsInput(StrictInputModel):
+    status: Literal["created", "running", "converged", "unconverged", "failed", "over_budget"] | None = None
+    limit: int = Field(default=50, ge=1, le=200)
+
+
+class HarnessSkillIdInput(StrictInputModel):
+    skill_id: str = Field(min_length=1, max_length=120, pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$")
+
+
+class HarnessGraduateInput(HarnessGetStatusInput):
     pass
 
 

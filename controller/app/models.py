@@ -546,6 +546,7 @@ class McpToolDescriptor(BaseModel):
     name: str
     description: str
     inputSchema: dict[str, Any]
+    annotations: dict[str, bool] | None = None
 
 
 class McpToolCallRequest(BaseModel):
@@ -559,9 +560,12 @@ class McpToolCallContent(BaseModel):
 
 
 class McpToolCallResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     content: list[McpToolCallContent]
     structuredContent: Any | None = None
     isError: bool = False
+    meta: dict[str, Any] | None = Field(default=None, alias="_meta")
 
 
 BROWSER_ACTION_SCHEMA = BrowserActionDecision.model_json_schema()

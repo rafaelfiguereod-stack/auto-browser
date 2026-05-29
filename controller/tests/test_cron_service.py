@@ -3,7 +3,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.cron_service import CronService
 
@@ -90,6 +90,7 @@ class CronServiceTests(unittest.IsolatedAsyncioTestCase):
         updated = await service.update_job(created["id"], {"enabled": False, "schedule": "0 10 * * *"})
         self.assertFalse(updated["enabled"])
         scheduler.remove_job.assert_called_with(created["id"])
+        self.assertIsInstance(updated["run_count"], int)
 
         self.store_path.write_text("{bad json", encoding="utf-8")
         self.assertEqual(service._load(), {})
@@ -97,6 +98,21 @@ class CronServiceTests(unittest.IsolatedAsyncioTestCase):
         uninitialized = CronService(self.store_path)
         with self.assertRaises(RuntimeError):
             await uninitialized._run_job_now({"id": "job-1", "goal": "run"})
+
+    async def test_remove_job_failures_are_logged(self) -> None:
+        service = CronService(self.store_path)
+        scheduler = MagicMock()
+        scheduler.remove_job.side_effect = RuntimeError("missing")
+        service._scheduler = scheduler
+        created = await service.create_job(name="scheduled", goal="run", schedule="0 9 * * *")
+
+        with patch("app.cron_service.logger.warning") as mock_warning:
+            await service.update_job(created["id"], {"enabled": False, "schedule": "0 10 * * *"})
+            await service.delete_job(created["id"])
+
+        self.assertEqual(mock_warning.call_count, 2)
+        self.assertEqual(mock_warning.call_args_list[0][0][0], "failed to remove cron job %s during update: %s")
+        self.assertEqual(mock_warning.call_args_list[1][0][0], "failed to remove cron job %s during delete: %s")
 
 
 if __name__ == "__main__":

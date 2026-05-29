@@ -11,9 +11,7 @@ Give multiple LLMs a shared, screen-aware browser harness that can:
 
 ## Non-goals
 
-- bot evasion or anti-bot bypass
 - CAPTCHA solving
-- stealth fingerprints or deceptive identity shaping
 - using real personal browser profiles
 
 ## The core idea

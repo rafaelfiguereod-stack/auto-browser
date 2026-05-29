@@ -112,6 +112,18 @@ In the full profile, `browser.queue_agent_run` accepts `workflow_profile`
 (`fast` or `governed`) and `browser.resume_agent_job` resumes interrupted,
 failed, or step-limited background runs from persisted checkpoints.
 
+The full profile also exposes the convergence harness:
+
+- `harness.start_convergence`
+- `harness.get_status`
+- `harness.get_trace`
+- `harness.list_runs`
+- `harness.list_candidates`
+- `harness.get_candidate`
+- `harness.graduate`
+
+Use `workflow_profile=governed` when starting convergence against a live browser session. `harness.graduate` writes only a staged candidate; promotion to the production skill corpus remains a separate governed review step.
+
 ## Raw tool-call example
 
 If you want to see the shape of the tool surface without wiring up a full MCP client yet:

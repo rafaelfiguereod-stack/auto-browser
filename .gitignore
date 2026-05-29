@@ -1,5 +1,8 @@
 .env
 .autonomous/
+.agents/
+docs/brainstorms/
+HANDOFF.md
 CODEX_*.md
 data/artifacts/*
 !data/artifacts/.gitkeep

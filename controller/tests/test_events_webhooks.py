@@ -64,9 +64,41 @@ class WebhookTests(unittest.IsolatedAsyncioTestCase):
         first_call = client.post.await_args_list[0]
         self.assertEqual(first_call.args[0], "https://hooks.example.com/approval")
         self.assertIn("X-Webhook-Signature", first_call.kwargs["headers"])
-        self.assertEqual(first_call.kwargs["headers"]["User-Agent"], "auto-browser/1.0.5")
+        self.assertEqual(first_call.kwargs["headers"]["User-Agent"], "auto-browser/1.1.0")
         self.assertIn(b'"source":"test"', first_call.kwargs["content"])
         self.assertEqual(client.post.await_count, 2)
+
+    async def test_dispatch_blocks_disallowed_webhook_targets(self) -> None:
+        approval = ApprovalRecord(
+            id="approval-2",
+            session_id="session-1",
+            kind="write",
+            status="pending",
+            created_at="2026-01-01T00:00:00Z",
+            updated_at="2026-01-01T00:00:00Z",
+            reason="needs review",
+            action=BrowserActionDecision(action="click", reason="click", selector="button", risk_category="write"),
+        )
+        client = Mock()
+        client.post = AsyncMock(return_value=Mock(status_code=200))
+
+        with patch.object(webhooks, "get_client", return_value=client), patch.object(webhooks.logger, "warning") as mock_warning:
+            blocked_urls = [
+                "http://127.0.0.1:8080/approval",
+                "http://[::1]/approval",
+                "http://localhost/approval",
+                "http://0.0.0.0/approval",
+                "http://[::]/approval",
+                "http://224.0.0.1/approval",
+                "http://169.254.169.254/approval",
+                "http://metadata.google.internal/approval",
+            ]
+            for blocked_url in blocked_urls:
+                await webhooks.dispatch_approval_event(approval, webhook_url=blocked_url)
+
+        self.assertEqual(client.post.await_count, 0)
+        self.assertEqual(mock_warning.call_count, len(blocked_urls))
+
 
 
 if __name__ == "__main__":

@@ -1,0 +1,52 @@
+{
+  "id": "example-read",
+  "goal": "Open the example page and confirm it loaded.",
+  "task_class": "read_only",
+  "preconditions": [
+    {
+      "kind": "start_url",
+      "value": "https://example.com"
+    }
+  ],
+  "postconditions": [
+    {
+      "kind": "url_contains",
+      "value": "example.com"
+    },
+    {
+      "kind": "text_contains",
+      "value": "Example Domain",
+      "required": false
+    }
+  ],
+  "forbidden_states": [
+    {
+      "kind": "captcha_screen"
+    },
+    {
+      "kind": "payment_screen"
+    },
+    {
+      "kind": "login_redirect"
+    }
+  ],
+  "evidence_required": [
+    {
+      "kind": "trace"
+    },
+    {
+      "kind": "actions"
+    },
+    {
+      "kind": "screenshots",
+      "required": false
+    }
+  ],
+  "budget": {
+    "max_steps": 3,
+    "max_attempts": 1,
+    "max_wall_seconds": 60,
+    "max_model_calls": 4,
+    "max_usd": 0.5
+  }
+}

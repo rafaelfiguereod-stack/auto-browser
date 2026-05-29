@@ -61,6 +61,18 @@ class MainAuthTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"status": "ok"})
 
+    def test_version_is_exempt_from_bearer_auth(self) -> None:
+        response = self.client.get("/version")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"version": main_module._VERSION})
+
+    def test_deep_health_is_not_exempt_from_bearer_auth(self) -> None:
+        response = self.client.get("/healthz/deep")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.headers["WWW-Authenticate"], "Bearer")
+
     def test_missing_or_invalid_bearer_token_returns_401(self) -> None:
         response = self.client.get("/sessions")
 
@@ -81,6 +93,13 @@ class MainAuthTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(main_module.settings.operator_id_header, response.text)
         self.assertIn(main_module.settings.operator_name_header, response.text)
+
+    def test_dashboard_api_subpath_is_not_exempt_from_bearer_auth(self) -> None:
+        with patch.object(main_module.settings, "require_operator_id", True):
+            response = self.client.get("/dashboard/api")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.headers["WWW-Authenticate"], "Bearer")
 
     def test_legacy_ui_redirects_to_dashboard_bootstrap(self) -> None:
         with patch.object(main_module.settings, "require_operator_id", True):
